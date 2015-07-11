@@ -190,6 +190,29 @@ module.exports = function(schema, options) {
     }
   };
 
+  schema.methods.verifyPassword = function(password, cb){
+    var self = this;
+
+    if (!this.get(options.saltField)) {
+        return cb(null, false, { message: options.noSaltValueStoredError });
+    }
+
+    pbkdf2(password, this.get(options.saltField), function(err, hashRaw) {
+      if (err) {
+        return cb(err);
+      }
+
+      var hash = new Buffer(hashRaw, 'binary').toString(options.encoding);
+
+      if (scmp(hash, self.get(options.hashField))) {
+        return cb(null, self);
+      } else {
+        return cb(null, false, new errors.IncorrectPasswordError(options.errorMessages.IncorrectPasswordError));
+      }
+    });
+
+  };
+
   if (options.limitAttempts) {
     schema.methods.resetAttempts = function(cb) {
       this.set(options.attemptsField, 0);
